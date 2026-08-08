@@ -93,6 +93,20 @@ jobs:
               "https://github.com/${ORG}/${name}.git" "$WS/$name"
           done
 
+      # Con un store de fichero (lancedb) el corpus VIVE en el workspace, y
+      # este job corre en una máquina distinta de la que ingestó: sin
+      # restaurarlo no habría nada que consultar. Con pgvector es inocuo,
+      # porque el corpus está en la base. El fallback sin corpus cubre que
+      # hoy code y docs comparten índice cuando el store es de fichero.
+      - name: Restaurar el corpus indexado por la ingesta
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ inputs.workspace-dir }}/.karajan
+          key: kjw-manifest-${{ inputs.corpus }}-${{ github.run_id }}
+          restore-keys: |
+            kjw-manifest-${{ inputs.corpus }}-
+            kjw-manifest-
+
       - name: Extraer diff del merge
         env:
           REPOS_TOKEN: ${{ secrets.REPOS_TOKEN }}
@@ -127,6 +141,26 @@ jobs:
           git -C "$WS/$REPO" diff "$BASE" "$HEAD" > merge.diff
           test -s merge.diff || { echo "diff vacío entre $BASE y $HEAD"; exit 1; }
 
+      # El backend del store es un peer que el motor no arrastra: sin él el
+      # análisis muere pidiéndolo. Se instala LOCAL junto a karajan-watch
+      # —no con npx efímero— para que la resolución del módulo lo encuentre.
+      - name: Instalar karajan-watch y el backend del store
+        env:
+          CONFIG: ${{ inputs.config-path }}
+          CORPUS: ${{ inputs.corpus }}
+          KJW_VERSION: ${{ inputs.karajan-watch-version }}
+        run: |
+          set -euo pipefail
+          store=$(jq -r --arg c "$CORPUS" '.corpus[$c].store' "$CONFIG")
+          case "$store" in
+            lancedb) peer='@lancedb/lancedb' ;;
+            pgvector) peer='pg' ;;
+            in-memory) peer='' ;;
+            *) echo "store no soportado en $CONFIG: $store"; exit 1 ;;
+          esac
+          echo "store declarado: $store${peer:+ (backend $peer)}"
+          npm install --no-save --silent "karajan-watch@${KJW_VERSION}" ${peer:+"$peer"}
+
       - name: Analizar impacto y avisar
         env:
           PG_URL: ${{ secrets.PG_URL }}
@@ -148,4 +182,4 @@ jobs:
               *) args+=(--pr-number "$PR_NUMBER") ;;
             esac
           fi
-          npx --yes "karajan-watch@${KJW_VERSION}" impact "${args[@]}"
+          ./node_modules/.bin/karajan-watch impact "${args[@]}"
