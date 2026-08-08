@@ -37,6 +37,13 @@ on:
         description: Corpus a consultar (code | docs)
         type: string
         default: code
+      judge:
+        description: >-
+          Pedir veredicto al LLM. Desactívalo si no tienes un adapter
+          disponible en el runner: el pipeline correrá solo con señales
+          (retrieval, contratos y co-cambios) en vez de fallar en rojo.
+        type: boolean
+        default: true
       workspace-dir:
         description: Directorio del workspace multi-repo
         type: string
@@ -173,9 +180,14 @@ jobs:
           WS: ${{ inputs.workspace-dir }}
           REPO: ${{ inputs.repo }}
           CORPUS: ${{ inputs.corpus }}
+          JUDGE: ${{ inputs.judge }}
         run: |
           set -euo pipefail
           args=(--config "$CONFIG" --workspace "$WS" --repo "$REPO" --diff merge.diff --corpus "$CORPUS")
+          # Un `[ ] && cmd` que da falso abortaría el paso bajo `set -e`.
+          if [ "$JUDGE" != "true" ]; then
+            args+=(--no-judge)
+          fi
           if [ -n "$PR_NUMBER" ]; then
             case "$PR_NUMBER" in
               *[!0-9]*) echo "pr-number inválido: $PR_NUMBER"; exit 1 ;;

@@ -48,6 +48,9 @@ jobs:
       head-sha: 357d37c401d002180c1587a6cff14366c8942957
       config-path: .github/selftest/karajan-watch.config.json
       corpus: code
+      # Sin adapter LLM en el runner: se ejercita la fontanería y las tres
+      # señales deterministas, que es lo que este self-test debe cubrir.
+      judge: false
     secrets:
       REPOS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
