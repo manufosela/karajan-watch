@@ -163,4 +163,15 @@ jobs:
               *) args+=(--pr-number "$PR_NUMBER") ;;
             esac
           fi
-          ./node_modules/.bin/karajan-watch drift "${args[@]}"
+          # El informe queda además en un fichero: un job verde no dice nada
+          # sobre qué documentación quedó señalada, y quien despliega querrá
+          # leerlo o archivarlo. pipefail ya está activo, así que un fallo
+          # del CLI sigue tumbando el paso aunque `tee` termine bien.
+          ./node_modules/.bin/karajan-watch drift "${args[@]}" | tee drift-report.md
+
+      - name: Publicar el informe
+        uses: actions/upload-artifact@v4
+        with:
+          name: kjw-drift-report-${{ inputs.repo }}-${{ inputs.head-sha }}
+          path: drift-report.md
+          if-no-files-found: error

@@ -194,4 +194,15 @@ jobs:
               *) args+=(--pr-number "$PR_NUMBER") ;;
             esac
           fi
-          ./node_modules/.bin/karajan-watch impact "${args[@]}"
+          # El informe queda además en un fichero: un job verde no dice nada
+          # sobre lo que se analizó, y quien despliega querrá leerlo o
+          # archivarlo. pipefail ya está activo, así que un fallo del CLI
+          # sigue tumbando el paso aunque `tee` termine bien.
+          ./node_modules/.bin/karajan-watch impact "${args[@]}" | tee impact-report.md
+
+      - name: Publicar el informe
+        uses: actions/upload-artifact@v4
+        with:
+          name: kjw-impact-report-${{ inputs.repo }}-${{ inputs.head-sha }}
+          path: impact-report.md
+          if-no-files-found: error
