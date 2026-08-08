@@ -1,5 +1,4 @@
 {
-  "_comment": "Config del self-test de los workflows reusables. Los repos observados son dos repos PÚBLICOS reales de la familia, así el ejercicio es de verdad sin necesitar una organización aparte ni credenciales especiales. Store lancedb: sin infraestructura. Sin notify.targets a propósito: el self-test jamás debe comentar en una PR real.",
   "repos": [
     { "name": "karajan-watch", "sensitivity": "public" },
     { "name": "karajan-rag", "sensitivity": "public" }
